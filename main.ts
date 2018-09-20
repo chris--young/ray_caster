@@ -3,10 +3,10 @@ const LEVEL_WIDTH = 640;
 const LEVEL_HEIGHT = 480;
 const LEVEL = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+  [1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -31,35 +31,81 @@ const context = canvas.getContext('2d');
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   draw_level();
-  cast_ray(player.position[0], player.position[1], player.rotation);
   draw_grid();
-  draw_ray(player.position[0], player.position[1], player.rotation);
+  cast_ray_x(player.position[0], player.position[1], player.rotation);
+  cast_ray_y(player.position[0], player.position[1], player.rotation);
   draw_player();
 
   requestAnimationFrame(loop);
 })();
 
-function draw_ray(x: number, y: number, t: number): void {
-  context.save();
-  context.strokeStyle = 'rgb(255, 255, 0)';
-  context.translate(x, y);
-  context.beginPath();
-  context.moveTo(0, 0);
-  context.lineTo(Math.cos(t) * canvas.width, Math.sin(t) * -canvas.height);
-  context.stroke();
-  context.restore();
+function collision(x: number, y: number): boolean {
+  const xi = Math.floor(x / LEVEL_GRID_SIZE);
+  const yi = Math.floor(y / LEVEL_GRID_SIZE);
+
+  if (!LEVEL[yi]) {
+    console.log({ xi, yi });
+    return true;
+  }
+
+  return LEVEL[yi][xi] === 1;
 }
 
-function cast_ray(x: number, y: number, t: number): number {
-  const direction = t < Math.PI ? -1 : 1;
-  const ay = (Math.floor(y / LEVEL_GRID_SIZE) + direction) * LEVEL_GRID_SIZE;
-  const ax = Math.floor(((y - ay) / Math.tan(t) + x) / LEVEL_GRID_SIZE) * LEVEL_GRID_SIZE;
+function cast_ray_y(x: number, y: number, t: number): number {
+  const ydirection = t > Math.PI ? LEVEL_GRID_SIZE : -1;
 
-  console.log({ x, y, t, ax, ay, direction });
+  const ya = ydirection === -1 ? -LEVEL_GRID_SIZE : LEVEL_GRID_SIZE
+  const xa = LEVEL_GRID_SIZE / Math.tan(t);
+
+  let ay = Math.floor(y / LEVEL_GRID_SIZE) * LEVEL_GRID_SIZE + ydirection;
+  let ax = x + (y - ay) / Math.tan(t);
 
   context.save();
-  context.fillStyle = 'rgb(255, 255, 0)';
-  context.fillRect(ax, ay, LEVEL_GRID_SIZE, LEVEL_GRID_SIZE);
+  context.fillStyle = 'rgb(0, 0, 0)';
+  context.strokeStyle = 'rgb(0, 0, 0)';
+  context.fillRect(ax - 3, ay - 3, 6, 6);
+
+  while (!collision(ax, ay)) {
+    ay += ya;
+
+    if (ydirection === -1)
+      ax += xa;
+    else
+      ax -= xa;
+
+    context.fillRect(ax - 3, ay - 3, 6, 6);
+  }
+
+  context.restore();
+
+  return 0;
+}
+
+function cast_ray_x(x: number, y: number, t: number): number {
+  const xdirection = t > Math.PI * 0.5 && t < Math.PI * 1.5 ? -1 : LEVEL_GRID_SIZE;
+
+  const ya = LEVEL_GRID_SIZE * Math.tan(t);
+  const xa = xdirection === -1 ? -LEVEL_GRID_SIZE : LEVEL_GRID_SIZE
+
+  let bx = Math.floor(x / LEVEL_GRID_SIZE) * LEVEL_GRID_SIZE + xdirection;
+  let by = y + (x - bx) * Math.tan(t);
+
+  context.save();
+  context.fillStyle = 'rgb(0, 0, 0)';
+  context.strokeStyle = 'rgb(0, 0, 0)';
+  context.fillRect(bx - 3, by - 3, 6, 6);
+
+  while (!collision(bx, by)) {
+    if (xdirection === -1)
+      by += ya;
+    else
+      by -= ya;
+
+    bx += xa;
+
+    context.fillRect(bx - 3, by - 3, 6, 6);
+  }
+
   context.restore();
 
   return 0;
@@ -92,7 +138,7 @@ document.addEventListener('keydown', (event: KeyboardEvent): void => {
 
 function draw_player(): void {
   context.save();
-  context.fillStyle = 'rgb(255, 0, 0)';
+  context.fillStyle = 'rgb(127, 127, 127)';
   context.strokeStyle = 'rgb(0, 0, 0)';
   context.translate(player.position[0], player.position[1]);
   context.rotate(-player.rotation);
