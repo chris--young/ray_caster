@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "alwaysStrict": true,
+    "lib": [
+      "dom",
+      "es2015"
+    ],
+    "module": "system",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outFile": "public/main.js",
+    "removeComments": true,
+    "sourceMap": true,
+    "target": "es5"
+  },
+  "files": [
+    "main.ts"
+  ],
+  "include": [
+    "./**/*"
+  ]
+}

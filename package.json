@@ -1,0 +1,15 @@
+{
+  "name": "ray_caster",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'lol'",
+    "build": "tsc"
+  },
+  "author": "Chris Young (youngc5690@gmail.com)",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "3.0.3"
+  }
+}
