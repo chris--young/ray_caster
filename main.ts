@@ -1,7 +1,7 @@
-const LEVEL_GRID_SIZE = 32;
-const LEVEL_WIDTH = 640;
-const LEVEL_HEIGHT = 480;
-const LEVEL = [
+const LEVEL_GRID_SIZE: number = 32;
+const LEVEL_WIDTH: number = 640;
+const LEVEL_HEIGHT: number = 480;
+const LEVEL: number[][] = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
   [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
@@ -19,119 +19,152 @@ const LEVEL = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
-const player = {
-  position: [LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2],
-  rotation: Math.PI / 4
+type Vec2D = [number, number];
+
+interface Player {
+  pos: Vec2D,
+  r: number
+}
+
+const player: Player = {
+  pos: [LEVEL_WIDTH / 2, LEVEL_HEIGHT / 2],
+  r: Math.PI / 4
 };
 
-const canvas = document.querySelector('canvas');
-const context = canvas.getContext('2d');
+const canvas: HTMLCanvasElement = document.querySelector('canvas');
+const context: CanvasRenderingContext2D = canvas.getContext('2d');
 
 (function loop(): void {
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   draw_level();
   draw_grid();
-  cast_ray_x(player.position[0], player.position[1], player.rotation);
-  cast_ray_y(player.position[0], player.position[1], player.rotation);
+
+  const d: number = cast_ray(player.pos, player.r);
+  draw_ray(player.pos, player.r, d);
+
   draw_player();
 
   requestAnimationFrame(loop);
 })();
 
-function collision(x: number, y: number): boolean {
-  const xi = Math.floor(x / LEVEL_GRID_SIZE);
-  const yi = Math.floor(y / LEVEL_GRID_SIZE);
-
-  if (!LEVEL[yi]) {
-    console.log({ xi, yi });
-    return true;
-  }
-
-  return LEVEL[yi][xi] === 1;
+function draw_ray(pos: Vec2D, r: number, d: number): void {
+  context.save();
+  context.strokeStyle = 'rgb(0, 0, 0)';
+  context.moveTo(pos[0], pos[1]);
+  context.lineTo(Math.cos(r) * d + pos[0], Math.sin(-r) * d + pos[1]);
+  context.stroke();
+  context.restore();
 }
 
-function cast_ray_y(x: number, y: number, t: number): number {
-  const ydirection = t > Math.PI ? LEVEL_GRID_SIZE : -1;
+function dist(a: Vec2D, b: Vec2D): number {
+  const x: number = b[0] - a[0];
+  const y: number = b[1] - a[1];
+  const d: number = Math.sqrt(x * x + y * y)
 
-  const ya = ydirection === -1 ? -LEVEL_GRID_SIZE : LEVEL_GRID_SIZE
-  const xa = LEVEL_GRID_SIZE / Math.tan(t);
+  return d;
+}
 
-  let ay = Math.floor(y / LEVEL_GRID_SIZE) * LEVEL_GRID_SIZE + ydirection;
-  let ax = x + (y - ay) / Math.tan(t);
+function cast_ray(pos: Vec2D, r: number): number {
+  const x: Vec2D = cast_ray_x(pos, r);
+  const y: Vec2D = cast_ray_y(pos, r);
+  const dx: number = dist(player.pos, x);
+  const dy: number = dist(player.pos, y);
+
+  return Math.min(dx, dy);
+}
+
+function collision(pos: Vec2D): boolean {
+  const x: number = Math.floor(pos[0] / LEVEL_GRID_SIZE);
+  const y: number = Math.floor(pos[1] / LEVEL_GRID_SIZE);
+
+  if (!LEVEL[y])
+    return true;
+
+  return LEVEL[y][x] !== 0;
+}
+
+function cast_ray_y(pos: Vec2D, r: number): Vec2D {
+  const ydirection: number = r > Math.PI ? LEVEL_GRID_SIZE : -1;
+
+  const sy: number = ydirection === -1 ? -LEVEL_GRID_SIZE : LEVEL_GRID_SIZE
+  const sx: number = LEVEL_GRID_SIZE / Math.tan(r);
+
+  let y: number = Math.floor(pos[1] / LEVEL_GRID_SIZE) * LEVEL_GRID_SIZE + ydirection;
+  let x: number = pos[0] + (pos[1] - y) / Math.tan(r);
 
   context.save();
   context.fillStyle = 'rgb(0, 0, 0)';
   context.strokeStyle = 'rgb(0, 0, 0)';
-  context.fillRect(ax - 3, ay - 3, 6, 6);
+  context.fillRect(x - 3, y - 3, 6, 6);
 
-  while (!collision(ax, ay)) {
-    ay += ya;
+  while (!collision([x, y])) {
+    y += sy;
 
     if (ydirection === -1)
-      ax += xa;
+      x += sx;
     else
-      ax -= xa;
+      x -= sx;
 
-    context.fillRect(ax - 3, ay - 3, 6, 6);
+    context.fillRect(x - 3, y - 3, 6, 6);
   }
 
   context.restore();
 
-  return 0;
+  return [x, y];
 }
 
-function cast_ray_x(x: number, y: number, t: number): number {
-  const xdirection = t > Math.PI * 0.5 && t < Math.PI * 1.5 ? -1 : LEVEL_GRID_SIZE;
+function cast_ray_x(pos: Vec2D, r: number): Vec2D {
+  const xdirection: number = r > Math.PI * 0.5 && r < Math.PI * 1.5 ? -1 : LEVEL_GRID_SIZE;
 
-  const ya = LEVEL_GRID_SIZE * Math.tan(t);
-  const xa = xdirection === -1 ? -LEVEL_GRID_SIZE : LEVEL_GRID_SIZE
+  const sy: number = LEVEL_GRID_SIZE * Math.tan(r);
+  const sx: number = xdirection === -1 ? -LEVEL_GRID_SIZE : LEVEL_GRID_SIZE
 
-  let bx = Math.floor(x / LEVEL_GRID_SIZE) * LEVEL_GRID_SIZE + xdirection;
-  let by = y + (x - bx) * Math.tan(t);
+  let x: number = Math.floor(pos[0] / LEVEL_GRID_SIZE) * LEVEL_GRID_SIZE + xdirection;
+  let y: number = pos[1] + (pos[0] - x) * Math.tan(r);
 
   context.save();
   context.fillStyle = 'rgb(0, 0, 0)';
   context.strokeStyle = 'rgb(0, 0, 0)';
-  context.fillRect(bx - 3, by - 3, 6, 6);
+  context.fillRect(x - 3, y - 3, 6, 6);
 
-  while (!collision(bx, by)) {
+  while (!collision([x, y])) {
     if (xdirection === -1)
-      by += ya;
+      y += sy;
     else
-      by -= ya;
+      y -= sy;
 
-    bx += xa;
+    x += sx;
 
-    context.fillRect(bx - 3, by - 3, 6, 6);
+    context.fillRect(x - 3, y - 3, 6, 6);
   }
 
   context.restore();
 
-  return 0;
+  return [x, y];
 }
 
 document.addEventListener('keydown', (event: KeyboardEvent): void => {
   switch (event.which) {
     case 37: // left 
-      if (player.rotation < Math.PI * 2)
-        player.rotation += Math.PI * 2 / 360;
+      if (player.r < Math.PI * 2)
+        player.r += Math.PI * 2 / 360;
       else
-        player.rotation = 0;
+        player.r = 0;
       break;
     case 38: // up
-      player.position[0] += Math.cos(player.rotation);
-      player.position[1] -= Math.sin(player.rotation);
+      player.pos[0] += Math.cos(player.r);
+      player.pos[1] -= Math.sin(player.r);
       break;
     case 39: // right
-      if (player.rotation > 0)
-        player.rotation -= Math.PI * 2 / 360;
+      if (player.r > 0)
+        player.r -= Math.PI * 2 / 360;
       else
-        player.rotation = Math.PI * 2;
+        player.r = Math.PI * 2;
       break;
     case 40: // down
-      player.position[0] -= Math.cos(player.rotation);
-      player.position[1] += Math.sin(player.rotation);
+      player.pos[0] -= Math.cos(player.r);
+      player.pos[1] += Math.sin(player.r);
       break;
   }
 });
@@ -140,8 +173,8 @@ function draw_player(): void {
   context.save();
   context.fillStyle = 'rgb(127, 127, 127)';
   context.strokeStyle = 'rgb(0, 0, 0)';
-  context.translate(player.position[0], player.position[1]);
-  context.rotate(-player.rotation);
+  context.translate(player.pos[0], player.pos[1]);
+  context.rotate(-player.r);
   context.beginPath();
   context.moveTo(10, 0);
   context.lineTo(-10, -10);
@@ -180,8 +213,8 @@ function draw_level(): void {
   context.save();
   context.fillStyle = 'rgb(127, 127, 127)';
 
-  for (let y = 0; y < LEVEL.length; ++y)
-    for (let x = 0; x < LEVEL[0].length; ++x)
+  for (let y: number = 0; y < LEVEL.length; ++y)
+    for (let x: number = 0; x < LEVEL[0].length; ++x)
       if (LEVEL[y][x])
         context.fillRect(x * LEVEL_GRID_SIZE, y * LEVEL_GRID_SIZE, LEVEL_GRID_SIZE, LEVEL_GRID_SIZE);
 
